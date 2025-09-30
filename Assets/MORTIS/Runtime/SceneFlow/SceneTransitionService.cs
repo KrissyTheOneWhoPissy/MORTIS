@@ -29,7 +29,7 @@ namespace MORTIS.SceneFlow
             // Local-only: toggle this client's control components
             var local = NetworkManager.Singleton.LocalClient?.PlayerObject;
             if (local)
-            local.GetComponent<MORTIS.Players.PlayerControlGate>()?.SetFrozen(freeze);
+                local.GetComponent<MORTIS.Players.PlayerControlGate>()?.SetFrozen(freeze);
         }
 
         // Called by SceneReadyBeacon via ServerRpc
@@ -117,18 +117,18 @@ namespace MORTIS.SceneFlow
             float timeout = 30f;
             float t = 0f;
             while (_ready.Count < expected && t < timeout)
-                {
+            {
                 yield return null;
                 t += Time.deltaTime;
-                }
+            }
 
             // 5) unload previous content scene
             if (!string.IsNullOrEmpty(currentScene))
-                {
+            {
                 var prev = SceneManager.GetSceneByName(currentScene);
                 if (prev.IsValid() && prev.isLoaded)
                     NetworkManager.SceneManager.UnloadScene(prev);
-                }
+            }
 
             currentScene = sceneName;
 
@@ -154,49 +154,69 @@ namespace MORTIS.SceneFlow
             var panel = GameObject.Find("LoadingPanel");
             if (panel) panel.SetActive(show);
         }
-        
+
         void ServerMovePlayersToSpawnsIfPresent(bool reviveAll)
-    {
-        if (!IsServer) return;
+        {
+            if (!IsServer) return;
 
-        var a = GameObject.FindWithTag("Spawn_A")?.transform;
-        var b = GameObject.FindWithTag("Spawn_B")?.transform;
-        var c = GameObject.FindWithTag("Spawn_C")?.transform;
-        var d = GameObject.FindWithTag("Spawn_D")?.transform;
-        var table = new Transform[] { a, b, c, d };
-        bool anySpawns = (a || b || c || d);
+            // Collect SpawnPoints in the current content scene
+            var points = FindObjectsByType<SpawnPoint>(FindObjectsSortMode.None);
+            var byId = new System.Collections.Generic.Dictionary<string, Transform>();
+            foreach (var p in points)
+                if (!string.IsNullOrEmpty(p.spawnId) && !byId.ContainsKey(p.spawnId))
+                    byId[p.spawnId] = p.transform;
 
-        int i = 0;
-        foreach (var kv in NetworkManager.ConnectedClients)
+            // Deterministic seating order: host->A, then B, C, D
+            string[] seatOrder = { "A", "B", "C", "D" };
+            var clientIds = new System.Collections.Generic.List<ulong>(NetworkManager.ConnectedClients.Keys);
+            clientIds.Sort();
+
+            for (int i = 0; i < clientIds.Count; i++)
             {
-        var po = kv.Value.PlayerObject;
-        if (!po) continue;
+                var clientId = clientIds[i];
+                if (!NetworkManager.ConnectedClients.TryGetValue(clientId, out var ci) || !ci.PlayerObject)
+                    continue;
 
-        // revive in safe rooms
-        var life = po.GetComponent<MORTIS.Players.PlayerLifeState>();
-        if (reviveAll && life) life.State.Value = MORTIS.Players.LifeState.Alive;
+                var po = ci.PlayerObject;
 
-        var cc = po.GetComponent<CharacterController>();
-        float half = cc ? cc.height * 0.5f : 0.9f;
-        if (cc) cc.enabled = false;
+                // optional revive
+                var life = po.GetComponent<MORTIS.Players.PlayerLifeState>();
+                if (reviveAll && life) life.State.Value = MORTIS.Players.LifeState.Alive;
 
-        // choose spawn or fallback
-        Transform t = anySpawns ? table[i % table.Length] : null;
-        Vector3 pos = t ? t.position : new Vector3(0f, 1f, 0f);
-        Quaternion rot = t ? t.rotation : Quaternion.identity;
+                string desired = seatOrder[i % seatOrder.Length];
 
-        // snap to ground with a raycast from above
-        Vector3 origin = pos + Vector3.up * 5f;
-        if (Physics.Raycast(origin, Vector3.down, out var hit, 50f, ~0, QueryTriggerInteraction.Ignore))
-            pos = hit.point + Vector3.up * (half + 0.02f);
-        else
-            pos += Vector3.up * (half + 0.02f);
+                if (!byId.TryGetValue(desired, out var t) || !t)
+                {
+                    Debug.LogError($"[Spawn] Missing SpawnPoint '{desired}' in scene '{currentScene}'. " +
+                               "Place a SpawnPoint with spawnId A/B/C/D.");
+                    continue; // do not move this player
+                }
 
-        po.transform.SetPositionAndRotation(pos, rot);
+                // Move EXACTLY to the transform (no raycast / no fallback)
+                Vector3 targetPos = t.position;
+                Quaternion targetRot = t.rotation;
 
-        if (cc) cc.enabled = true;
-        i++;
+                // Ask the owner to move themselves (works with owner-auth transforms)
+                var mover = po.GetComponent<MORTIS.Players.PlayerSpawnMover>();
+                if (mover)
+                {
+                    var rpcParams = new ClientRpcParams {
+                        Send = new ClientRpcSendParams { TargetClientIds = new[] { clientId } }
+                    };
+                    mover.TeleportOwnerClientRpc(targetPos, targetRot, rpcParams);
+                }
+                else
+                {
+                    var cc = po.GetComponent<CharacterController>();
+                    if (cc) cc.enabled = false;
+                    po.transform.SetPositionAndRotation(targetPos, targetRot);
+                    if (cc) cc.enabled = true;
+                }
             }
+
+            // For visibility in Console
+            var found = string.Join(", ", System.Array.ConvertAll(points, p => $"{p.spawnId}:{p.name}"));
+            Debug.Log($"[Spawn] Used explicit spawns → {found}");
         }
-    }
+    }   
 }

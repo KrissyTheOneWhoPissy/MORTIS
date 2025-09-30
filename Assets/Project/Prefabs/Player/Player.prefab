@@ -17,6 +17,7 @@ GameObject:
   - component: {fileID: 2892733761905697660}
   - component: {fileID: 6290050905014597835}
   - component: {fileID: 1162528041188631777}
+  - component: {fileID: 6238894112920691526}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -215,6 +216,19 @@ MonoBehaviour:
   toToggle:
   - {fileID: 6290050905014597835}
   - {fileID: 8179170284378247386}
+--- !u!114 &6238894112920691526
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4924677080582436563}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f0722bdf0d185c54789c33cd5a0a8a2c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  ShowTopMostFoldoutHeaderGroup: 1
 --- !u!1 &6111808462542104655
 GameObject:
   m_ObjectHideFlags: 0
@@ -243,7 +257,7 @@ Transform:
   m_GameObject: {fileID: 6111808462542104655}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalPosition: {x: 0, y: 1.6, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
