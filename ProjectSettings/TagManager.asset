@@ -4,10 +4,10 @@
 TagManager:
   serializedVersion: 3
   tags:
-  - SpawnA
-  - SpawnB
-  - SpawnC
-  - SpawnD
+  - Spawn_A
+  - Spawn_B
+  - Spawn_C
+  - Spawn_D
   layers:
   - Default
   - TransparentFX

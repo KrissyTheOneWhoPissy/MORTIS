@@ -129,8 +129,8 @@ GameObject:
   m_Component:
   - component: {fileID: 73445124}
   m_Layer: 0
-  m_Name: Spawn D
-  m_TagString: Untagged
+  m_Name: Spawn_D
+  m_TagString: Spawn_D
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -144,7 +144,7 @@ Transform:
   m_GameObject: {fileID: 73445123}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 2, z: 0}
+  m_LocalPosition: {x: 0, y: 5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -269,8 +269,8 @@ GameObject:
   m_Component:
   - component: {fileID: 374968098}
   m_Layer: 0
-  m_Name: Spawn B
-  m_TagString: Untagged
+  m_Name: Spawn_B
+  m_TagString: Spawn_B
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -284,7 +284,7 @@ Transform:
   m_GameObject: {fileID: 374968097}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 2, z: 0}
+  m_LocalPosition: {x: 0, y: 5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -303,7 +303,7 @@ GameObject:
   - component: {fileID: 390079103}
   - component: {fileID: 390079102}
   m_Layer: 0
-  m_Name: Spawn_B
+  m_Name: SpawnBPlatform
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -411,8 +411,8 @@ GameObject:
   m_Component:
   - component: {fileID: 477826043}
   m_Layer: 0
-  m_Name: Spawn A
-  m_TagString: Untagged
+  m_Name: Spawn_A
+  m_TagString: Spawn_A
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -426,7 +426,7 @@ Transform:
   m_GameObject: {fileID: 477826042}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 2, z: 0}
+  m_LocalPosition: {x: 0, y: 5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -445,7 +445,7 @@ GameObject:
   - component: {fileID: 878364245}
   - component: {fileID: 878364244}
   m_Layer: 0
-  m_Name: Spawn_A
+  m_Name: SpawnAPlatform
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -556,7 +556,7 @@ GameObject:
   - component: {fileID: 959672917}
   - component: {fileID: 959672916}
   m_Layer: 0
-  m_Name: Spawn_C
+  m_Name: SpawnCPlatform
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1003,7 +1003,7 @@ GameObject:
   - component: {fileID: 2010373124}
   - component: {fileID: 2010373123}
   m_Layer: 0
-  m_Name: Spawn_D
+  m_Name: SpawnDPlatform
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1227,8 +1227,8 @@ GameObject:
   m_Component:
   - component: {fileID: 2115687025}
   m_Layer: 0
-  m_Name: Spawn C
-  m_TagString: Untagged
+  m_Name: Spawn_C
+  m_TagString: Spawn_C
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
@@ -1242,7 +1242,7 @@ Transform:
   m_GameObject: {fileID: 2115687024}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 2, z: 0}
+  m_LocalPosition: {x: 0, y: 5, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
