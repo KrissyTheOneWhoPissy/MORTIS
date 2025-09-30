@@ -1,54 +1,113 @@
 using Unity.Netcode;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+using System.Collections;
 using MORTIS.Data;
 
 namespace MORTIS.SceneFlow
 {
-    // Put this on GameSystems (which has a NetworkObject)
     public class SceneTransitionService : NetworkBehaviour
     {
-        [Header("Optional for later wiring")]
         [SerializeField] private SceneDirectory directory;
+        [SerializeField] private string currentScene;   // name of the active content scene
+        int cursor = -1;
 
         public override void OnNetworkSpawn()
         {
-            if (IsServer)
+            if (!IsServer) return;
+            StartCoroutine(Boot());
+        }
+
+        IEnumerator Boot()
+        {
+            // Optional shared UI scene
+            if (!string.IsNullOrEmpty(directory.sharedUI))
             {
-                Debug.Log("[SceneTransitionService] Server up.");
-                // Later: load Shared_UI + MainMenu additively
+                NetworkManager.SceneManager.LoadScene(directory.sharedUI, LoadSceneMode.Additive);
+                yield return WaitUntilLoaded(directory.sharedUI);
             }
+
+            // Start in Main Menu
+            yield return ServerLoadContent(directory.mainMenu);
+            var rs = FindFirstObjectByType<RunStateService>();
+            rs?.ServerSetPhase(RunPhase.MainMenu);
         }
 
         [ServerRpc(RequireOwnership = false)]
         public void HostGameServerRpc()
         {
             if (!IsServer) return;
-            Debug.Log("[SceneTransitionService] HostGame requested.");
-            // Later: load TicketBooth
+
+            // If an offline MainMenu was loaded by OfflineBootstrap, unload it now.
+            var mm = UnityEngine.SceneManagement.SceneManager.GetSceneByName(directory.mainMenu);
+            if (mm.IsValid() && mm.isLoaded)
+                UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(mm);
+
+            StartCoroutine(ServerLoadContent(directory.ticketBooth));
+            var rs = FindFirstObjectByType<RunStateService>();
+            rs?.ServerSetPhase(RunPhase.TicketBooth);
         }
 
         [ServerRpc(RequireOwnership = false)]
         public void StartRunServerRpc()
         {
             if (!IsServer) return;
-            Debug.Log("[SceneTransitionService] StartRun requested.");
-            // Later: jump to first level
+            cursor = -1;
+            ServerGoToNextNode();
         }
 
-        // Plain server-only method (no attribute; guard instead)
         public void ServerGoToNextNode()
         {
             if (!IsServer) return;
-            Debug.Log("[SceneTransitionService] ServerGoToNextNode()");
-            // Later: additive load next scene, unload current
+
+            cursor++;
+            if (cursor >= directory.runOrder.Count)
+            {
+                StartCoroutine(ServerLoadContent(directory.ticketBooth));
+                var rs = FindFirstObjectByType<RunStateService>();
+                rs?.ServerSetPhase(RunPhase.TicketBooth);
+                return;
+            }
+
+            var node = directory.runOrder[cursor];
+            StartCoroutine(ServerLoadContent(node.sceneName, node.isSafeRoom));
+
+            var rs2 = FindFirstObjectByType<RunStateService>();
+            rs2?.ServerSetPhase(node.isSafeRoom ? RunPhase.SafeRoom : RunPhase.Playing);
         }
 
-        // Example of a server-only helper you'll call after loading a Safe Room
-        public void ServerRespawnAllAtSceneSpawns()
+        IEnumerator ServerLoadContent(string sceneName, bool reviveOnSafeRoom = false)
         {
-            if (!IsServer) return;
-            Debug.Log("[SceneTransitionService] Respawn (stub)");
-            // Later: find Spawn_A..D and move/Revive players
+            ShowLoadingClientRpc(true);
+
+            NetworkManager.SceneManager.LoadScene(sceneName, LoadSceneMode.Additive);
+            yield return WaitUntilLoaded(sceneName);
+
+            if (!string.IsNullOrEmpty(currentScene))
+            {
+                var prev = SceneManager.GetSceneByName(currentScene);
+                if (prev.IsValid() && prev.isLoaded)
+                    NetworkManager.SceneManager.UnloadScene(prev); // pass Scene, not string
+            }
+
+            currentScene = sceneName;
+
+            if (reviveOnSafeRoom)
+            {
+                // placeholder for respawn — you’ll wire this when SafeRoom spawns exist
+                // ServerRespawnAllAtSceneSpawns();
+            }
+
+            ShowLoadingClientRpc(false);
+        }
+
+        IEnumerator WaitUntilLoaded(string sceneName)
+            => new WaitUntil(() => SceneManager.GetSceneByName(sceneName).isLoaded);
+
+        [ClientRpc] void ShowLoadingClientRpc(bool show)
+        {
+            var panel = GameObject.Find("LoadingPanel");
+            if (panel) panel.SetActive(show);
         }
     }
 }

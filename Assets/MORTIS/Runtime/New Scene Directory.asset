@@ -1,0 +1,27 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e164008fde890134484701c3b8001e66, type: 3}
+  m_Name: New Scene Directory
+  m_EditorClassIdentifier: 
+  mainMenu: MainMenu
+  ticketBooth: TicketBooth_Lobby
+  sharedUI: Shared_UI
+  runOrder:
+  - id: Level_Ring_01
+    sceneName: Level_Ring_01
+    isSafeRoom: 0
+  - id: SafeRoom_01
+    sceneName: SafeRoom_01
+    isSafeRoom: 1
+  - id: SharedUI
+    sceneName: SharedUI
+    isSafeRoom: 0

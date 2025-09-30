@@ -10,10 +10,15 @@ namespace MORTIS.Players
 
         public override void OnNetworkSpawn()
         {
-            // Make sure only the local owner has active camera/audio.
-            bool mine = IsOwner;
-            if (playerCamera)   playerCamera.enabled   = mine;
-            if (audioListener)  audioListener.enabled  = mine;
+            var mine = IsOwner;
+            if (playerCamera) playerCamera.enabled = mine;
+            if (audioListener) audioListener.enabled = mine;
+
+            if (mine)
+            {
+                var boot = GameObject.Find("BootstrapCamera");
+                if (boot) boot.SetActive(false);
+            }
         }
     }
 }

@@ -9,15 +9,17 @@ namespace MORTIS.Data
         [System.Serializable]
         public class Node
         {
-            public string id;                 // e.g., "Ring 01"
-            public string addressableKey;     // e.g., "scenes/level_ring_01"
+            public string id;        // e.g., "Ring 01"
+            public string sceneName; // e.g., "Level_Ring_01"
             public bool isSafeRoom;
         }
 
-        public string mainMenuKey = "scenes/main_menu";
-        public string ticketBoothKey = "scenes/ticket_booth_lobby";
-        public string sharedUiKey = "scenes/shared_ui";
+        [Header("Scene names (exact in Build Settings)")]
+        public string mainMenu = "MainMenu";
+        public string ticketBooth = "TicketBooth_Lobby";
+        public string sharedUI = "Shared_UI"; // optional; leave empty if unused
 
-        public List<Node> runOrder = new();  // interleave levels & saferooms
+        [Header("Run order")]
+        public List<Node> runOrder = new();
     }
 }

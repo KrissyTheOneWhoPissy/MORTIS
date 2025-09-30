@@ -14,37 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_GroupName: Default Local Group
   m_GUID: 3dcbde2421ce78b4e814848d7f1163de
-  m_SerializeEntries:
-  - m_GUID: 030b93f482a5d2843afbdc7b24a0debd
-    m_Address: Assets/Project/Scenes/TicketBooth.unity
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 249ac6eb69aaa3a4db35ac0e8a6ea9df
-    m_Address: Assets/Project/Scenes/GamePersistent.unity
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 36be297c6a135bd46b299720968a5cd6
-    m_Address: Assets/Project/Scenes/LevelChallange01.unity
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 7f88d5c08549d9c45b3a12c4706123ac
-    m_Address: Assets/Project/Scenes/SafeRoom01.unity
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 97653ae0200249b40af23f9cde89b0a5
-    m_Address: Assets/Project/Scenes/SharedUI.unity
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 99c9720ab356a0642a771bea13969a05
-    m_Address: Assets/Project/Scenes/MainMenu.unity
-    m_ReadOnly: 0
-    m_SerializedLabels: []
-    FlaggedDuringContentUpdateRestriction: 0
+  m_SerializeEntries: []
   m_ReadOnly: 0
   m_Settings: {fileID: 11400000, guid: f54994197f362f142aa9cb0180c521d6, type: 2}
   m_SchemaSet:
