@@ -12,11 +12,33 @@ namespace MORTIS.SceneFlow
         [SerializeField] private string currentScene;   // name of the active content scene
         int cursor = -1;
 
+        // Track which clients have reported ready for the just-loaded scene
+        System.Collections.Generic.HashSet<ulong> _ready = new();
+        string _awaitingScene = null;
+        bool _revivePending = false;
+
         public override void OnNetworkSpawn()
         {
             if (!IsServer) return;
             StartCoroutine(Boot());
         }
+
+        [ClientRpc]
+        void FreezePlayersClientRpc(bool freeze)
+        {
+            // Local-only: toggle this client's control components
+            var local = NetworkManager.Singleton.LocalClient?.PlayerObject;
+            if (local)
+            local.GetComponent<MORTIS.Players.PlayerControlGate>()?.SetFrozen(freeze);
+        }
+
+        // Called by SceneReadyBeacon via ServerRpc
+        public void ServerMarkClientReady(ulong clientId)
+        {
+            if (!IsServer || string.IsNullOrEmpty(_awaitingScene)) return;
+            _ready.Add(clientId);
+        }
+
 
         IEnumerator Boot()
         {
@@ -79,29 +101,49 @@ namespace MORTIS.SceneFlow
         IEnumerator ServerLoadContent(string sceneName, bool reviveOnSafeRoom = false)
         {
             ShowLoadingClientRpc(true);
+            FreezePlayersClientRpc(true);                  // 1) freeze local controls on everyone
 
+            _ready.Clear();
+            _awaitingScene = sceneName;                    // 2) start barrier
+            _revivePending = reviveOnSafeRoom;
+
+            // 3) load scene additively on all clients
             NetworkManager.SceneManager.LoadScene(sceneName, LoadSceneMode.Additive);
             yield return WaitUntilLoaded(sceneName);
+            yield return null;                             // let scene Awake/Start (and beacons) run
 
+            // 4) wait until every connected client has reported ready
+            int expected = NetworkManager.ConnectedClients.Count;
+            float timeout = 30f;
+            float t = 0f;
+            while (_ready.Count < expected && t < timeout)
+                {
+                yield return null;
+                t += Time.deltaTime;
+                }
+
+            // 5) unload previous content scene
             if (!string.IsNullOrEmpty(currentScene))
-            {
+                {
                 var prev = SceneManager.GetSceneByName(currentScene);
                 if (prev.IsValid() && prev.isLoaded)
-                    NetworkManager.SceneManager.UnloadScene(prev); // pass Scene, not string
-            }
+                    NetworkManager.SceneManager.UnloadScene(prev);
+                }
 
             currentScene = sceneName;
 
-            ServerMovePlayersToSpawnsIfPresent(reviveOnSafeRoom);
+            // 6) place players on spawns (with your ground snap) + optional revive
+            ServerMovePlayersToSpawnsIfPresent(_revivePending);
 
-            if (reviveOnSafeRoom)
-            {
-                // placeholder for respawn — you’ll wire this when SafeRoom spawns exist
-                // ServerRespawnAllAtSceneSpawns();
-            }
-
+            // 7) unfreeze controls + hide loading
+            FreezePlayersClientRpc(false);
             ShowLoadingClientRpc(false);
+
+            // 8) clear barrier state
+            _awaitingScene = null;
+            _revivePending = false;
         }
+
 
         IEnumerator WaitUntilLoaded(string sceneName)
             => new WaitUntil(() => SceneManager.GetSceneByName(sceneName).isLoaded);
