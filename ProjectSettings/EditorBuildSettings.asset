@@ -6,8 +6,24 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
-    path: Assets/Project/Scenes/Main Menu.unity
+    path: Assets/Project/Scenes/MainMenu.unity
     guid: 99c9720ab356a0642a771bea13969a05
+  - enabled: 1
+    path: Assets/Project/Scenes/GamePersistent.unity
+    guid: 249ac6eb69aaa3a4db35ac0e8a6ea9df
+  - enabled: 1
+    path: Assets/Project/Scenes/Level_Ring_01.unity
+    guid: 36be297c6a135bd46b299720968a5cd6
+  - enabled: 1
+    path: Assets/Project/Scenes/SafeRoom_01.unity
+    guid: 7f88d5c08549d9c45b3a12c4706123ac
+  - enabled: 1
+    path: Assets/Project/Scenes/SharedUI.unity
+    guid: 97653ae0200249b40af23f9cde89b0a5
+  - enabled: 1
+    path: Assets/Project/Scenes/TicketBooth_Lobby.unity
+    guid: 030b93f482a5d2843afbdc7b24a0debd
   m_configObjects:
+    com.unity.addressableassets: {fileID: 11400000, guid: 8f04976ef9b8197439f7e29c03fe74b0, type: 2}
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 052faaac586de48259a63d0c4782560b, type: 3}
   m_UseUCBPForAssetBundles: 0
