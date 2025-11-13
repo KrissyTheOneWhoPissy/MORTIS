@@ -1,23 +1,32 @@
 using Unity.Netcode;
 using UnityEngine;
+using Unity.Cinemachine;   // new namespace
 
 namespace MORTIS.Players
 {
     public class PlayerSetup : NetworkBehaviour
     {
-        [SerializeField] private Camera playerCamera;
-        [SerializeField] private AudioListener audioListener;
+        [SerializeField] Camera playerCamera;
+        [SerializeField] AudioListener audioListener;
 
-        public override void OnNetworkSpawn()
+        [SerializeField] Transform cameraRoot;          // Camera Root
+        [SerializeField] CinemachineCamera vcam;        // CM_vcam
+
+        void Start()
         {
-            var mine = IsOwner;
-            if (playerCamera) playerCamera.enabled = mine;
-            if (audioListener) audioListener.enabled = mine;
+            bool isLocal = IsOwner;
 
-            if (mine)
+            if (playerCamera)  playerCamera.enabled = isLocal;
+            if (audioListener) audioListener.enabled = isLocal;
+            if (vcam)          vcam.enabled = isLocal;
+
+            // Tracking Target can be set in the prefab inspector,
+            // but just in case you want to enforce it in code:
+            if (isLocal && vcam != null && cameraRoot != null)
             {
-                var boot = GameObject.Find("BootstrapCamera");
-                if (boot) boot.SetActive(false);
+                var t = vcam.Target;
+                t.TrackingTarget = cameraRoot;
+                vcam.Target = t;
             }
         }
     }

@@ -14,14 +14,33 @@ namespace MORTIS.Players
         [SerializeField] float sprintMultiplier = 1.5f;
 
         [Header("Jump")]
-        [SerializeField] float jumpHeight = 1.6f;   // tweak in Inspector
+        [SerializeField] float jumpHeight = 1.6f;
 
         [Header("Gravity")]
         [SerializeField] float gravity = -9.81f;
         [SerializeField] float groundedGravity = -2f;
 
+        [Header("Air Control")]
+        [SerializeField] float airControl = 5f;     // how strongly you can steer in air
+        [SerializeField] float airFriction = 0.5f;  // how fast momentum decays when no input
+
+        [Header("Camera Motion")]
+        [SerializeField] CameraMotionController cameraMotion;
+
         CharacterController cc;
-        Vector3 velocity;  // y used for gravity / jumping
+
+        // y = vertical, xz = horizontal
+        float verticalVelocity;            // vertical speed (jump / gravity)
+        Vector3 horizontalVelocity;        // world-space horizontal velocity
+
+        bool _jumpHeld;
+        bool wasGrounded;
+
+        // Public accessors for trampoline & others
+        public bool IsGrounded      => cc.isGrounded;
+        public float VerticalVelocity => verticalVelocity;
+        public bool JumpHeld        => _jumpHeld;
+        public float HorizontalSpeed => new Vector2(horizontalVelocity.x, horizontalVelocity.z).magnitude;
 
         void Awake() => cc = GetComponent<CharacterController>();
 
@@ -30,32 +49,84 @@ namespace MORTIS.Players
             if (!IsOwner) return;
 
             // --- INPUT ---
-            Vector2 move   = GetMoveInput();
-            bool   sprint  = GetSprintInput();
-            bool   jump    = GetJumpInput();
+            Vector2 moveInput   = GetMoveInput();
+            bool   sprint       = GetSprintInput();
+            bool   jumpPressed  = GetJumpInputPressed();
+            _jumpHeld           = GetJumpInputHeld();
 
-            // world-space move based on player forward/right
-            Vector3 wish = (transform.right * move.x + transform.forward * move.y).normalized;
-            float finalSpeed = sprint ? speed * sprintMultiplier : speed;
+            // world-space desired direction from input
+            Vector3 wishDir = (transform.right * moveInput.x + transform.forward * moveInput.y).normalized;
+            float   targetSpeed = sprint ? speed * sprintMultiplier : speed;
 
             bool grounded = cc.isGrounded;
+            float prevYVel = verticalVelocity;
 
-            // --- GROUND / JUMP ---
-            if (grounded && velocity.y < 0f)
-                velocity.y = groundedGravity;
+            // --- VERTICAL (GROUND + JUMP + GRAVITY) ---
 
-            if (grounded && jump)
+            // slight downward stick when grounded
+            if (grounded && verticalVelocity < 0f)
+                verticalVelocity = groundedGravity;
+
+            // jump
+            if (grounded && jumpPressed)
             {
-                // v = sqrt(2 * h * -g)  (gravity is negative)
-                velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+                verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
+                cameraMotion?.OnJump();
             }
 
-            // --- GRAVITY ---
-            velocity.y += gravity * Time.deltaTime;
+            // gravity (always)
+            verticalVelocity += gravity * Time.deltaTime;
 
-            // --- MOVE ---
-            Vector3 delta = (wish * finalSpeed + new Vector3(0, velocity.y, 0)) * Time.deltaTime;
-            cc.Move(delta);
+            // --- HORIZONTAL (GROUND VS AIR) ---
+
+            if (grounded)
+            {
+                // On ground: direct control, very responsive
+                horizontalVelocity = wishDir * targetSpeed;
+            }
+            else
+            {
+                // In air: keep momentum, steer toward wishDir
+                Vector3 targetVel = wishDir * targetSpeed;
+
+                // steer towards target (air control)
+                float ac = airControl * Time.deltaTime;
+                if (ac > 1f) ac = 1f;
+                horizontalVelocity = Vector3.Lerp(horizontalVelocity, targetVel, ac);
+
+                // if no input, apply gentle drag so you don't slide forever
+                if (wishDir.sqrMagnitude < 0.001f)
+                {
+                    float drag = airFriction * Time.deltaTime;
+                    if (drag > 1f) drag = 1f;
+                    horizontalVelocity = Vector3.Lerp(horizontalVelocity, Vector3.zero, drag);
+                }
+            }
+
+            // --- MOVE CHARACTER ---
+
+            Vector3 velocity = horizontalVelocity + Vector3.up * verticalVelocity;
+            cc.Move(velocity * Time.deltaTime);
+
+            // --- LANDING DETECTION ---
+
+            if (!wasGrounded && grounded)
+            {
+                float impact = Mathf.Abs(prevYVel);
+                cameraMotion?.OnLand(impact);
+            }
+
+            wasGrounded = grounded;
+
+            // feed state to camera motion
+            cameraMotion?.SetLocomotionState(moveInput, grounded, sprint);
+        }
+
+        // Allow external forces (e.g. trampoline) to modify vertical velocity safely
+        public void ApplyVerticalImpulse(float newUpwardVelocity)
+        {
+            if (newUpwardVelocity > verticalVelocity)
+                verticalVelocity = newUpwardVelocity;
         }
 
         static Vector2 NormalizeCardinal(Vector2 v)
@@ -89,13 +160,22 @@ namespace MORTIS.Players
             return Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
         }
 
-        bool GetJumpInput()
+        bool GetJumpInputPressed()
         {
 #if ENABLE_INPUT_SYSTEM
             var kb = Keyboard.current;
             if (kb != null) return kb.spaceKey.wasPressedThisFrame;
 #endif
             return Input.GetKeyDown(KeyCode.Space);
+        }
+
+        bool GetJumpInputHeld()
+        {
+#if ENABLE_INPUT_SYSTEM
+            var kb = Keyboard.current;
+            if (kb != null) return kb.spaceKey.isPressed;
+#endif
+            return Input.GetKey(KeyCode.Space);
         }
     }
 }
