@@ -15,6 +15,7 @@ MonoBehaviour:
   mainMenu: MainMenu
   ticketBooth: TicketBooth_Lobby
   sharedUI: Shared_UI
+  testScene: TestingField
   runOrder:
   - id: Level_Ring_01
     sceneName: Level_Ring_01
@@ -24,4 +25,7 @@ MonoBehaviour:
     isSafeRoom: 1
   - id: SharedUI
     sceneName: SharedUI
+    isSafeRoom: 0
+  - id: TestingField
+    sceneName: TestingField
     isSafeRoom: 0

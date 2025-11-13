@@ -18,6 +18,7 @@ namespace MORTIS.Data
         public string mainMenu = "MainMenu";
         public string ticketBooth = "TicketBooth_Lobby";
         public string sharedUI = "Shared_UI"; // optional; leave empty if unused
+        public string testScene = "Test_Scene"; // <- NEW
 
         [Header("Run order")]
         public List<Node> runOrder = new();

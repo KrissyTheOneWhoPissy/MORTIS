@@ -71,6 +71,24 @@ namespace MORTIS.SceneFlow
         }
 
         [ServerRpc(RequireOwnership = false)]
+        public void HostTestSceneServerRpc()
+        {
+            if (!IsServer) return;
+
+            // Unload main menu if loaded
+            var mm = UnityEngine.SceneManagement.SceneManager.GetSceneByName(directory.mainMenu);
+            if (mm.IsValid() && mm.isLoaded)
+            UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(mm);
+
+            // Load the TestingField scene
+            StartCoroutine(ServerLoadContent(directory.testScene));
+
+            // Optional: tell your RunStateService we are in a test phase
+            var rs = FindFirstObjectByType<RunStateService>();
+            rs?.ServerSetPhase(RunPhase.Playing);  // or your own phase if you add one
+        }
+
+        [ServerRpc(RequireOwnership = false)]
         public void StartRunServerRpc()
         {
             if (!IsServer) return;
@@ -111,6 +129,8 @@ namespace MORTIS.SceneFlow
             NetworkManager.SceneManager.LoadScene(sceneName, LoadSceneMode.Additive);
             yield return WaitUntilLoaded(sceneName);
             yield return null;                             // let scene Awake/Start (and beacons) run
+
+            PersistentSceneCleaner.DisablePersistentFloor();
 
             // 4) wait until every connected client has reported ready
             int expected = NetworkManager.ConnectedClients.Count;
