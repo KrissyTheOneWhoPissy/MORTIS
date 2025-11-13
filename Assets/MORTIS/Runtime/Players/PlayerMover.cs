@@ -13,12 +13,15 @@ namespace MORTIS.Players
         [SerializeField] float speed = 4.5f;
         [SerializeField] float sprintMultiplier = 1.5f;
 
+        [Header("Jump")]
+        [SerializeField] float jumpHeight = 1.6f;   // tweak in Inspector
+
         [Header("Gravity")]
         [SerializeField] float gravity = -9.81f;
         [SerializeField] float groundedGravity = -2f;
 
         CharacterController cc;
-        Vector3 velocity;  // y only used for gravity
+        Vector3 velocity;  // y used for gravity / jumping
 
         void Awake() => cc = GetComponent<CharacterController>();
 
@@ -26,19 +29,29 @@ namespace MORTIS.Players
         {
             if (!IsOwner) return;
 
-            // --- INPUT (hybrid) ---
-            Vector2 move = GetMoveInput();
-            bool sprint = GetSprintInput();
+            // --- INPUT ---
+            Vector2 move   = GetMoveInput();
+            bool   sprint  = GetSprintInput();
+            bool   jump    = GetJumpInput();
 
             // world-space move based on player forward/right
             Vector3 wish = (transform.right * move.x + transform.forward * move.y).normalized;
             float finalSpeed = sprint ? speed * sprintMultiplier : speed;
 
-            // --- GRAVITY ---
-            if (cc.isGrounded && velocity.y < 0f)
+            bool grounded = cc.isGrounded;
+
+            // --- GROUND / JUMP ---
+            if (grounded && velocity.y < 0f)
                 velocity.y = groundedGravity;
-            else
-                velocity.y += gravity * Time.deltaTime;
+
+            if (grounded && jump)
+            {
+                // v = sqrt(2 * h * -g)  (gravity is negative)
+                velocity.y = Mathf.Sqrt(jumpHeight * -2f * gravity);
+            }
+
+            // --- GRAVITY ---
+            velocity.y += gravity * Time.deltaTime;
 
             // --- MOVE ---
             Vector3 delta = (wish * finalSpeed + new Vector3(0, velocity.y, 0)) * Time.deltaTime;
@@ -53,8 +66,7 @@ namespace MORTIS.Players
 
         Vector2 GetMoveInput()
         {
-            // New Input System
-            #if ENABLE_INPUT_SYSTEM
+#if ENABLE_INPUT_SYSTEM
             var kb = Keyboard.current;
             if (kb != null)
             {
@@ -62,8 +74,7 @@ namespace MORTIS.Players
                 float v = (kb.sKey.isPressed ? -1f : 0f) + (kb.wKey.isPressed ? 1f : 0f);
                 return NormalizeCardinal(new Vector2(h, v));
             }
-            #endif
-            // Legacy Input Manager
+#endif
             float x = Input.GetAxisRaw("Horizontal");
             float y = Input.GetAxisRaw("Vertical");
             return NormalizeCardinal(new Vector2(x, y));
@@ -71,11 +82,20 @@ namespace MORTIS.Players
 
         bool GetSprintInput()
         {
-            #if ENABLE_INPUT_SYSTEM
+#if ENABLE_INPUT_SYSTEM
             var kb = Keyboard.current;
             if (kb != null) return kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed;
-            #endif
+#endif
             return Input.GetKey(KeyCode.LeftShift) || Input.GetKey(KeyCode.RightShift);
+        }
+
+        bool GetJumpInput()
+        {
+#if ENABLE_INPUT_SYSTEM
+            var kb = Keyboard.current;
+            if (kb != null) return kb.spaceKey.wasPressedThisFrame;
+#endif
+            return Input.GetKeyDown(KeyCode.Space);
         }
     }
 }

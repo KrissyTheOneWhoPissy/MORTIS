@@ -8,6 +8,7 @@ TagManager:
   - Spawn_B
   - Spawn_C
   - Spawn_D
+  - PersistentFloor
   layers:
   - Default
   - TransparentFX
