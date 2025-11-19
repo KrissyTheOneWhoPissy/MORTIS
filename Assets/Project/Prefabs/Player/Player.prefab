@@ -139,6 +139,7 @@ GameObject:
   - component: {fileID: 6290050905014597835}
   - component: {fileID: 1162528041188631777}
   - component: {fileID: 6238894112920691526}
+  - component: {fileID: 2747720883442206970}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -357,6 +358,21 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   ShowTopMostFoldoutHeaderGroup: 1
+--- !u!114 &2747720883442206970
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4924677080582436563}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2d3f9ba216b424a41a7153720c59d7dd, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PlayerPushRigidbodies
+  pushForceMultiplier: 1.5
+  minSpeedToPush: 0.5
+  maxPushForce: 10
 --- !u!1 &6111808462542104655
 GameObject:
   m_ObjectHideFlags: 0
