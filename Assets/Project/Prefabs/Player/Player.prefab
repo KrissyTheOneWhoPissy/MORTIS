@@ -120,7 +120,7 @@ MonoBehaviour:
   PivotOffset: {x: 0, y: 0, z: 0}
   AmplitudeGain: 0
   FrequencyGain: 1
-  m_NoiseOffsets: {x: 0, y: 0, z: 0}
+  m_NoiseOffsets: {x: -580.76807, y: 744.1924, z: 983.01843}
 --- !u!1 &4924677080582436563
 GameObject:
   m_ObjectHideFlags: 0
@@ -140,6 +140,7 @@ GameObject:
   - component: {fileID: 1162528041188631777}
   - component: {fileID: 6238894112920691526}
   - component: {fileID: 2747720883442206970}
+  - component: {fileID: 8838151698386548023}
   m_Layer: 0
   m_Name: Player
   m_TagString: Untagged
@@ -296,6 +297,7 @@ MonoBehaviour:
   airControl: 5
   airFriction: 0.2
   cameraMotion: {fileID: 4724697303266391157}
+  ledgeClimber: {fileID: 8838151698386548023}
 --- !u!114 &2892733761905697660
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -373,6 +375,31 @@ MonoBehaviour:
   pushForceMultiplier: 1.5
   minSpeedToPush: 0.5
   maxPushForce: 10
+--- !u!114 &8838151698386548023
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4924677080582436563}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 57b9a6ec1ae35d6448ca36ffdbbc1ed4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MORTIS.Players.LedgeClimber
+  viewForward: {fileID: 4304216292384719093}
+  climbableLayers:
+    serializedVersion: 2
+    m_Bits: 1024
+  wallCheckDistance: 1.8
+  minLedgeBelowCamera: 0.7
+  maxLedgeAboveCamera: 2.5
+  ledgeSearchExtraAbove: 0.5
+  hangSnapBack: 0.3
+  hangHeightBelowTop: 1.5
+  climbUpTime: 1
+  climbForwardDistance: 0.7
+  grabTime: 0.5
 --- !u!1 &6111808462542104655
 GameObject:
   m_ObjectHideFlags: 0

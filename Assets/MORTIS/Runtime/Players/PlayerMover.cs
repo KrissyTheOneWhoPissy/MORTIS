@@ -27,6 +27,9 @@ namespace MORTIS.Players
         [Header("Camera Motion")]
         [SerializeField] CameraMotionController cameraMotion;
 
+        [Header("Climbing")]
+        [SerializeField] LedgeClimber ledgeClimber; // optional, auto-fills if on same object
+
         CharacterController cc;
 
         // y = vertical, xz = horizontal
@@ -37,12 +40,17 @@ namespace MORTIS.Players
         bool wasGrounded;
 
         // Public accessors for trampoline & others
-        public bool IsGrounded      => cc.isGrounded;
+        public bool IsGrounded        => cc.isGrounded;
         public float VerticalVelocity => verticalVelocity;
-        public bool JumpHeld        => _jumpHeld;
-        public float HorizontalSpeed => new Vector2(horizontalVelocity.x, horizontalVelocity.z).magnitude;
+        public bool JumpHeld          => _jumpHeld;
+        public float HorizontalSpeed  => new Vector2(horizontalVelocity.x, horizontalVelocity.z).magnitude;
 
-        void Awake() => cc = GetComponent<CharacterController>();
+        void Awake()
+        {
+            cc = GetComponent<CharacterController>();
+            if (ledgeClimber == null)
+                ledgeClimber = GetComponent<LedgeClimber>();
+        }
 
         void Update()
         {
@@ -54,12 +62,51 @@ namespace MORTIS.Players
             bool   jumpPressed  = GetJumpInputPressed();
             _jumpHeld           = GetJumpInputHeld();
 
-            // world-space desired direction from input
-            Vector3 wishDir = (transform.right * moveInput.x + transform.forward * moveInput.y).normalized;
-            float   targetSpeed = sprint ? speed * sprintMultiplier : speed;
-
             bool grounded = cc.isGrounded;
             float prevYVel = verticalVelocity;
+
+            // --- LEDGE CLIMBING HANDOFF ---
+
+            // --- LEDGE CLIMBING HANDOFF ---
+
+        if (ledgeClimber != null)
+        {
+            // If we're currently hanging or climbing, let the climber drive movement
+            if (ledgeClimber.IsBusy)
+            {
+            ledgeClimber.Tick(Time.deltaTime, moveInput, jumpPressed);
+            cameraMotion?.SetLocomotionState(moveInput, grounded, sprint);
+            wasGrounded = grounded;
+            return;
+            }
+
+            // Are we trying to grab a ledge this frame?
+            bool wantLedgeGrab = false;
+
+            // 1) Tap jump: immediate attempt (good when right next to a wall)
+            if (jumpPressed)
+                wantLedgeGrab = true;
+
+            // 2) Mid-air heroic grab: holding jump while flying toward a ledge
+            if (!grounded && _jumpHeld)
+                wantLedgeGrab = true;
+
+            if (wantLedgeGrab)
+            {
+                if (ledgeClimber.TryStartLedgeHang())
+                {
+                    // Reset vertical velocity so we don't fight the climb motion
+                    verticalVelocity = groundedGravity;
+
+                    // Optional: small camera reaction
+                    cameraMotion?.OnJump();
+
+                    wasGrounded = grounded;
+                    return; // this frame used for snapping into hang
+                }
+            }
+        }
+
 
             // --- VERTICAL (GROUND + JUMP + GRAVITY) ---
 
@@ -78,6 +125,10 @@ namespace MORTIS.Players
             verticalVelocity += gravity * Time.deltaTime;
 
             // --- HORIZONTAL (GROUND VS AIR) ---
+
+            // world-space desired direction from input
+            Vector3 wishDir = (transform.right * moveInput.x + transform.forward * moveInput.y).normalized;
+            float   targetSpeed = sprint ? speed * sprintMultiplier : speed;
 
             if (grounded)
             {
