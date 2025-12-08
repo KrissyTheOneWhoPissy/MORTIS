@@ -21,35 +21,47 @@ namespace MORTIS.Players
         [SerializeField] float groundedGravity = -2f;
 
         [Header("Air Control")]
-        [SerializeField] float airControl = 5f;     // how strongly you can steer in air
-        [SerializeField] float airFriction = 0.5f;  // how fast momentum decays when no input
+        [SerializeField] float airControl = 5f;
+        [SerializeField] float airFriction = 0.5f;
 
         [Header("Camera Motion")]
         [SerializeField] CameraMotionController cameraMotion;
 
         [Header("Climbing")]
-        [SerializeField] LedgeClimber ledgeClimber; // optional, auto-fills if on same object
+        [SerializeField] LedgeClimber ledgeClimber;
+
+        [Header("Animation (Optional)")]
+        [SerializeField] MortisAnimatorDriver animatorDriver; // <-- your bridge script
 
         CharacterController cc;
 
-        // y = vertical, xz = horizontal
-        float verticalVelocity;            // vertical speed (jump / gravity)
-        Vector3 horizontalVelocity;        // world-space horizontal velocity
+        float verticalVelocity;
+        Vector3 horizontalVelocity;
 
-        bool _jumpHeld;
+        bool jumpHeld;
         bool wasGrounded;
 
-        // Public accessors for trampoline & others
-        public bool IsGrounded        => cc.isGrounded;
+        // Public accessors
+        public bool IsGrounded => cc != null && cc.isGrounded;
         public float VerticalVelocity => verticalVelocity;
-        public bool JumpHeld          => _jumpHeld;
-        public float HorizontalSpeed  => new Vector2(horizontalVelocity.x, horizontalVelocity.z).magnitude;
+        public bool JumpHeld => jumpHeld;
+        public float HorizontalSpeed => new Vector2(horizontalVelocity.x, horizontalVelocity.z).magnitude;
+        // Useful for animation normalization
+        public float MaxGroundSpeed => speed * sprintMultiplier;
+        public bool IsSprinting { get; private set; }
 
         void Awake()
         {
             cc = GetComponent<CharacterController>();
+
             if (ledgeClimber == null)
                 ledgeClimber = GetComponent<LedgeClimber>();
+
+            if (animatorDriver == null)
+                animatorDriver = GetComponent<MortisAnimatorDriver>(); // optional component
+
+            // Initialize
+            wasGrounded = cc.isGrounded;
         }
 
         void Update()
@@ -57,95 +69,73 @@ namespace MORTIS.Players
             if (!IsOwner) return;
 
             // --- INPUT ---
-            Vector2 moveInput   = GetMoveInput();
-            bool   sprint       = GetSprintInput();
-            bool   jumpPressed  = GetJumpInputPressed();
-            _jumpHeld           = GetJumpInputHeld();
+            Vector2 moveInput = GetMoveInput();
+            bool sprint = GetSprintInput();
+            bool jumpPressed = GetJumpInputPressed();
+            jumpHeld = GetJumpInputHeld();
 
-            bool grounded = cc.isGrounded;
+            IsSprinting = sprint;
+
             float prevYVel = verticalVelocity;
 
-            // --- LEDGE CLIMBING HANDOFF ---
+            // Grounded is most reliable AFTER Move, but we need an initial value too
+            bool groundedBeforeMove = cc.isGrounded;
 
             // --- LEDGE CLIMBING HANDOFF ---
-
-        if (ledgeClimber != null)
-        {
-            // If we're currently hanging or climbing, let the climber drive movement
-            if (ledgeClimber.IsBusy)
+            if (ledgeClimber != null)
             {
-            ledgeClimber.Tick(Time.deltaTime, moveInput, jumpPressed);
-            cameraMotion?.SetLocomotionState(moveInput, grounded, sprint);
-            wasGrounded = grounded;
-            return;
-            }
-
-            // Are we trying to grab a ledge this frame?
-            bool wantLedgeGrab = false;
-
-            // 1) Tap jump: immediate attempt (good when right next to a wall)
-            if (jumpPressed)
-                wantLedgeGrab = true;
-
-            // 2) Mid-air heroic grab: holding jump while flying toward a ledge
-            if (!grounded && _jumpHeld)
-                wantLedgeGrab = true;
-
-            if (wantLedgeGrab)
-            {
-                if (ledgeClimber.TryStartLedgeHang())
+                if (ledgeClimber.IsBusy)
                 {
-                    // Reset vertical velocity so we don't fight the climb motion
+                    ledgeClimber.Tick(Time.deltaTime, moveInput, jumpPressed);
+                    cameraMotion?.SetLocomotionState(moveInput, cc.isGrounded, sprint);
+                    wasGrounded = cc.isGrounded;
+                    return;
+                }
+
+                bool wantLedgeGrab = jumpPressed || (!groundedBeforeMove && jumpHeld);
+                if (wantLedgeGrab && ledgeClimber.TryStartLedgeHang())
+                {
                     verticalVelocity = groundedGravity;
-
-                    // Optional: small camera reaction
                     cameraMotion?.OnJump();
-
-                    wasGrounded = grounded;
-                    return; // this frame used for snapping into hang
+                    wasGrounded = cc.isGrounded;
+                    return;
                 }
             }
-        }
-
 
             // --- VERTICAL (GROUND + JUMP + GRAVITY) ---
 
-            // slight downward stick when grounded
-            if (grounded && verticalVelocity < 0f)
+            // stick to ground
+            if (groundedBeforeMove && verticalVelocity < 0f)
                 verticalVelocity = groundedGravity;
 
             // jump
-            if (grounded && jumpPressed)
+            if (groundedBeforeMove && jumpPressed)
             {
                 verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
                 cameraMotion?.OnJump();
+                animatorDriver?.TriggerJump(); // <-- hook animator here
             }
 
-            // gravity (always)
+            // gravity
             verticalVelocity += gravity * Time.deltaTime;
 
             // --- HORIZONTAL (GROUND VS AIR) ---
 
-            // world-space desired direction from input
             Vector3 wishDir = (transform.right * moveInput.x + transform.forward * moveInput.y).normalized;
-            float   targetSpeed = sprint ? speed * sprintMultiplier : speed;
+            float targetSpeed = sprint ? speed * sprintMultiplier : speed;
 
-            if (grounded)
+            if (groundedBeforeMove)
             {
-                // On ground: direct control, very responsive
                 horizontalVelocity = wishDir * targetSpeed;
             }
             else
             {
-                // In air: keep momentum, steer toward wishDir
                 Vector3 targetVel = wishDir * targetSpeed;
 
-                // steer towards target (air control)
                 float ac = airControl * Time.deltaTime;
                 if (ac > 1f) ac = 1f;
                 horizontalVelocity = Vector3.Lerp(horizontalVelocity, targetVel, ac);
 
-                // if no input, apply gentle drag so you don't slide forever
                 if (wishDir.sqrMagnitude < 0.001f)
                 {
                     float drag = airFriction * Time.deltaTime;
@@ -155,25 +145,25 @@ namespace MORTIS.Players
             }
 
             // --- MOVE CHARACTER ---
-
             Vector3 velocity = horizontalVelocity + Vector3.up * verticalVelocity;
             cc.Move(velocity * Time.deltaTime);
 
-            // --- LANDING DETECTION ---
+            // grounded after move is the one you want for landing detection
+            bool groundedAfterMove = cc.isGrounded;
 
-            if (!wasGrounded && grounded)
+            // --- LANDING DETECTION ---
+            if (!wasGrounded && groundedAfterMove)
             {
                 float impact = Mathf.Abs(prevYVel);
                 cameraMotion?.OnLand(impact);
+                // If you later want a "Land" trigger, call it here.
             }
 
-            wasGrounded = grounded;
+            wasGrounded = groundedAfterMove;
 
-            // feed state to camera motion
-            cameraMotion?.SetLocomotionState(moveInput, grounded, sprint);
+            cameraMotion?.SetLocomotionState(moveInput, groundedAfterMove, sprint);
         }
 
-        // Allow external forces (e.g. trampoline) to modify vertical velocity safely
         public void ApplyVerticalImpulse(float newUpwardVelocity)
         {
             if (newUpwardVelocity > verticalVelocity)
