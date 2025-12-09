@@ -1,32 +1,46 @@
 using Unity.Netcode;
 using UnityEngine;
-using Unity.Cinemachine;   // new namespace
+using Unity.Cinemachine;
 
 namespace MORTIS.Players
 {
     public class PlayerSetup : NetworkBehaviour
     {
+        [Header("Local-only Components")]
         [SerializeField] Camera playerCamera;
         [SerializeField] AudioListener audioListener;
+        [SerializeField] CinemachineCamera vcam; // CM_vcam (Cinemachine 3)
 
-        [SerializeField] Transform cameraRoot;          // Camera Root
-        [SerializeField] CinemachineCamera vcam;        // CM_vcam
+        [Header("Cinemachine Target")]
+        [Tooltip("Assign CM_Target (or CM_Pitch if you later split). This is what the CinemachineCamera will track.")]
+        [SerializeField] Transform cmTrackingTarget;
 
-        void Start()
+        public override void OnNetworkSpawn()
+        {
+            ApplyLocalSetup();
+        }
+
+        void ApplyLocalSetup()
         {
             bool isLocal = IsOwner;
 
-            if (playerCamera)  playerCamera.enabled = isLocal;
+            if (playerCamera)  playerCamera.enabled  = isLocal;
             if (audioListener) audioListener.enabled = isLocal;
-            if (vcam)          vcam.enabled = isLocal;
+            if (vcam)          vcam.enabled          = isLocal;
 
-            // Tracking Target can be set in the prefab inspector,
-            // but just in case you want to enforce it in code:
-            if (isLocal && vcam != null && cameraRoot != null)
+            // Only the local player's vcam should have a tracking target set.
+            if (!isLocal || vcam == null) return;
+
+            if (cmTrackingTarget != null)
             {
                 var t = vcam.Target;
-                t.TrackingTarget = cameraRoot;
+                t.TrackingTarget = cmTrackingTarget;
                 vcam.Target = t;
+            }
+            else
+            {
+                Debug.LogWarning($"[{nameof(PlayerSetup)}] Missing cmTrackingTarget on {name}. " +
+                                 $"Assign CM_Target (or CM_Pitch) to avoid Cinemachine following the wrong transform.");
             }
         }
     }

@@ -24,6 +24,12 @@ namespace MORTIS.Players
         [SerializeField] float airControl = 5f;
         [SerializeField] float airFriction = 0.5f;
 
+        [Header("Crouch")]
+        [SerializeField] float crouchHeight = 1.2f;             // CharacterController height while crouched
+        [SerializeField] float crouchSpeedMultiplier = 0.55f;   // speed scale while crouched
+        [SerializeField] float crouchLerpSpeed = 14f;           // how fast the controller resizes
+        [SerializeField] LayerMask standCheckMask = ~0;         // ceiling check mask (everything by default)
+
         [Header("Camera Motion")]
         [SerializeField] CameraMotionController cameraMotion;
 
@@ -40,6 +46,11 @@ namespace MORTIS.Players
 
         bool jumpHeld;
         bool wasGrounded;
+
+        // --- Crouch state ---
+        public bool IsCrouching { get; private set; }
+        float standHeight;
+        Vector3 standCenter;
 
         // Public accessors
         public bool IsGrounded => cc != null && cc.isGrounded;
@@ -60,6 +71,10 @@ namespace MORTIS.Players
             if (animatorDriver == null)
                 animatorDriver = GetComponent<MortisAnimatorDriver>(); // optional component
 
+            // Cache standing controller dimensions
+            standHeight = cc.height;
+            standCenter = cc.center;
+
             // Initialize
             wasGrounded = cc.isGrounded;
         }
@@ -73,6 +88,7 @@ namespace MORTIS.Players
             bool sprint = GetSprintInput();
             bool jumpPressed = GetJumpInputPressed();
             jumpHeld = GetJumpInputHeld();
+            bool crouchHeld = GetCrouchInputHeld();
 
             IsSprinting = sprint;
 
@@ -80,6 +96,10 @@ namespace MORTIS.Players
 
             // Grounded is most reliable AFTER Move, but we need an initial value too
             bool groundedBeforeMove = cc.isGrounded;
+
+            // --- CROUCH (resize controller + animator bool) ---
+            HandleCrouch(crouchHeld);
+            animatorDriver?.SetCrouching(IsCrouching);
 
             // --- LEDGE CLIMBING HANDOFF ---
             if (ledgeClimber != null)
@@ -123,6 +143,9 @@ namespace MORTIS.Players
 
             Vector3 wishDir = (transform.right * moveInput.x + transform.forward * moveInput.y).normalized;
             float targetSpeed = sprint ? speed * sprintMultiplier : speed;
+
+            // crouch slows movement
+            if (IsCrouching) targetSpeed *= crouchSpeedMultiplier;
 
             if (groundedBeforeMove)
             {
@@ -169,6 +192,73 @@ namespace MORTIS.Players
             if (newUpwardVelocity > verticalVelocity)
                 verticalVelocity = newUpwardVelocity;
         }
+
+        // -------------------- CROUCH --------------------
+
+        void HandleCrouch(bool wantCrouch)
+        {
+            if (cc == null) return;
+
+            // If trying to stand, only allow if there is room above.
+            if (!wantCrouch && IsCrouching)
+            {
+                if (!CanStandUp())
+                    wantCrouch = true;
+            }
+
+            IsCrouching = wantCrouch;
+
+            float targetHeight = IsCrouching ? crouchHeight : standHeight;
+
+            // Common setup: center.y ~= height/2. We keep feet planted by making center match height/2.
+            Vector3 targetCenter = IsCrouching
+                ? new Vector3(standCenter.x, targetHeight * 0.5f, standCenter.z)
+                : standCenter;
+
+            cc.height = Mathf.Lerp(cc.height, targetHeight, Time.deltaTime * crouchLerpSpeed);
+            cc.center = Vector3.Lerp(cc.center, targetCenter, Time.deltaTime * crouchLerpSpeed);
+        }
+
+        bool CanStandUp()
+        {
+            // Where your head would be when standing
+            float r = cc.radius;
+
+            // current "feet" reference (CharacterController assumes transform.position is at feet in most setups)
+            Vector3 feet = transform.position;
+
+            // Current crouched top and standing top (world-space Y)
+            float currentTopY = feet.y + cc.height;      // approx top now
+            float standTopY   = feet.y + standHeight;    // top if standing
+
+            // If we're already basically standing, no need to block
+            if (standTopY <= currentTopY + 0.001f) return true;
+
+            // Start the cast slightly above current top to avoid immediately hitting our own surroundings
+            Vector3 start = new Vector3(feet.x, currentTopY - r * 0.25f, feet.z);
+
+            // Cast distance to reach the standing top (minus a small padding)
+            float dist = (standTopY - currentTopY) + 0.02f;
+
+            // SphereCast upward with a slightly smaller radius so nearby walls don't falsely block
+            float headRadius = Mathf.Max(0.05f, r * 0.9f);
+
+            bool hit = Physics.SphereCast(
+            start,
+            headRadius,
+            Vector3.up,
+            out _,
+            dist,
+            standCheckMask,
+            QueryTriggerInteraction.Ignore
+        );
+
+        return !hit;
+        }
+
+
+
+        // -------------------- INPUT --------------------
 
         static Vector2 NormalizeCardinal(Vector2 v)
         {
@@ -217,6 +307,15 @@ namespace MORTIS.Players
             if (kb != null) return kb.spaceKey.isPressed;
 #endif
             return Input.GetKey(KeyCode.Space);
+        }
+
+        bool GetCrouchInputHeld()
+        {
+#if ENABLE_INPUT_SYSTEM
+            var kb = Keyboard.current;
+            if (kb != null) return kb.leftCtrlKey.isPressed || kb.rightCtrlKey.isPressed || kb.cKey.isPressed;
+#endif
+            return Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl) || Input.GetKey(KeyCode.C);
         }
     }
 }

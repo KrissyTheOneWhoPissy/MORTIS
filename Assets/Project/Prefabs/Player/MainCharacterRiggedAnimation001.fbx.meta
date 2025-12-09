@@ -62,11 +62,11 @@ ModelImporter:
     extraUserProperties: []
     clipAnimations:
     - serializedVersion: 16
-      name: Root|Walk_Forward (1)
-      takeName: Root|Walk_Forward
+      name: Root|Crouch_Idle
+      takeName: Root|Crouch_Idle
       internalID: -908264047885225814
       firstFrame: 0
-      lastFrame: 24
+      lastFrame: 44
       wrapMode: 0
       orientationOffsetY: 0
       level: 0
