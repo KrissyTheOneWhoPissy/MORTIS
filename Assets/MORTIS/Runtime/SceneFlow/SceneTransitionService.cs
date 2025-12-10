@@ -8,6 +8,8 @@ namespace MORTIS.SceneFlow
 {
     public class SceneTransitionService : NetworkBehaviour
     {
+
+        public static SceneTransitionService Instance { get; private set; }
         [SerializeField] private SceneDirectory directory;
         [SerializeField] private string currentScene;   // name of the active content scene
         int cursor = -1;
@@ -19,8 +21,14 @@ namespace MORTIS.SceneFlow
 
         public override void OnNetworkSpawn()
         {
+            Instance = this;
+
             if (!IsServer) return;
             StartCoroutine(Boot());
+        }
+        public override void OnNetworkDespawn()
+        {
+            if (Instance == this) Instance = null;
         }
 
         [ClientRpc]
