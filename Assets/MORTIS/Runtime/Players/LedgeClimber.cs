@@ -21,7 +21,7 @@ namespace MORTIS.Players
         public float hangSnapBack = 0.4f;
 
         [Tooltip("How far below the ledge top you hang. Increase to lower the camera.")]
-        public float hangHeightBelowTop = 0.9f; // bumped default for more 'dangling' feel
+        public float hangHeightBelowTop = 0.9f;
 
         public float climbUpTime = 0.35f;
         public float climbForwardDistance = 0.7f;
@@ -69,12 +69,59 @@ namespace MORTIS.Players
             }
         }
 
+        /// <summary>
+        /// Non-destructive check: "If the player pressed Space right now, would we be able to start hanging?"
+        /// Use this for UI prompts.
+        /// </summary>
+        public bool CanStartLedgeHangNow()
+        {
+            if (state != ClimbState.Normal) return false;
+            if (viewForward == null) return false;
+
+            return ProbeLedge(out _, out _);
+        }
+
         public bool TryStartLedgeHang()
         {
             if (state != ClimbState.Normal)
                 return false;
             if (viewForward == null)
                 return false;
+
+            if (!ProbeLedge(out RaycastHit wallHit, out RaycastHit ledgeHit))
+                return false;
+
+            // 4) Hanging position
+            Vector3 up = Vector3.up;
+            Vector3 wallNormal = wallHit.normal;
+
+            Vector3 hangPos = ledgeHit.point
+                              - wallNormal * hangSnapBack
+                              - up * hangHeightBelowTop;
+
+            // Start a short grab tween from current position to hangPos
+            grabStartPos = transform.position;
+            grabTargetPos = hangPos;
+            grabTimer = 0f;
+
+            // Face the wall immediately so the tween moves "into" the ledge
+            Vector3 lookDir = -wallNormal;
+            lookDir.y = 0f;
+            if (lookDir.sqrMagnitude > 0.001f)
+                transform.rotation = Quaternion.LookRotation(lookDir);
+
+            state = ClimbState.Grabbing;
+            return true;
+        }
+
+        /// <summary>
+        /// Shared ledge detection logic for both CanStartLedgeHangNow and TryStartLedgeHang.
+        /// Returns true if a valid ledge is detected and there is space to stand.
+        /// </summary>
+        private bool ProbeLedge(out RaycastHit wallHit, out RaycastHit ledgeHit)
+        {
+            wallHit = default;
+            ledgeHit = default;
 
             Vector3 camPos = viewForward.position;
 
@@ -88,7 +135,7 @@ namespace MORTIS.Players
             if (!Physics.Raycast(
                     camPos,
                     forwardFlat,
-                    out RaycastHit wallHit,
+                    out wallHit,
                     wallCheckDistance,
                     climbableLayers,
                     QueryTriggerInteraction.Ignore))
@@ -111,7 +158,7 @@ namespace MORTIS.Players
             if (!Physics.Raycast(
                     topSearchStart,
                     Vector3.down,
-                    out RaycastHit ledgeHit,
+                    out ledgeHit,
                     maxDown,
                     climbableLayers,
                     QueryTriggerInteraction.Ignore))
@@ -142,39 +189,17 @@ namespace MORTIS.Players
                 return false;
             }
 
-            // 4) Hanging position
-            Vector3 wallNormal = wallHit.normal;
-
-            Vector3 hangPos = ledgeHit.point
-                              - wallNormal * hangSnapBack
-                              - up * hangHeightBelowTop;
-
-            // Start a short grab tween from current position to hangPos
-            grabStartPos = transform.position;
-            grabTargetPos = hangPos;
-            grabTimer = 0f;
-
-            // Face the wall immediately so the tween moves "into" the ledge
-            Vector3 lookDir = -wallNormal;
-            lookDir.y = 0f;
-            if (lookDir.sqrMagnitude > 0.001f)
-                transform.rotation = Quaternion.LookRotation(lookDir);
-
-            state = ClimbState.Grabbing;
             return true;
         }
 
         private void HandleGrabbing(float deltaTime)
         {
-            if (grabTime <= 0f)
-            {
-                grabTime = 0.01f;
-            }
+            if (grabTime <= 0f) grabTime = 0.01f;
 
             grabTimer += deltaTime;
             float t = Mathf.Clamp01(grabTimer / grabTime);
 
-            // Slight ease-out so it slows as you reach the hang
+            // ease-out
             t = t * t * (3f - 2f * t);
 
             Vector3 newPos = Vector3.Lerp(grabStartPos, grabTargetPos, t);
@@ -183,7 +208,6 @@ namespace MORTIS.Players
 
             if (t >= 1f)
             {
-                // Fully in hanging pose now
                 state = ClimbState.Hanging;
             }
         }
@@ -211,7 +235,7 @@ namespace MORTIS.Players
             forwardFlat.Normalize();
             Vector3 up = Vector3.up;
 
-            Vector3 upOffset = up * (cc.height * 0.9f); // lower to 0.8f if final view feels too high
+            Vector3 upOffset = up * (cc.height * 0.9f);
             Vector3 forwardOffset = forwardFlat * climbForwardDistance;
 
             climbTargetPos = transform.position + upOffset + forwardOffset;

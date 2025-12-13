@@ -39,6 +39,10 @@ namespace MORTIS.Players
         [Header("Animation (Optional)")]
         [SerializeField] MortisAnimatorDriver animatorDriver; // <-- your bridge script
 
+        [Header("UI Prompt")]
+        [SerializeField] ActionPromptUI actionPromptUI; // <-- drag PlayerUI's ActionPromptUI here (or auto-find)
+        [SerializeField] string ledgePromptText = "Press Space to Climb";
+
         CharacterController cc;
 
         float verticalVelocity;
@@ -71,6 +75,10 @@ namespace MORTIS.Players
             if (animatorDriver == null)
                 animatorDriver = GetComponent<MortisAnimatorDriver>(); // optional component
 
+            // NEW: find the prompt UI on this player (even if disabled)
+            if (actionPromptUI == null)
+                actionPromptUI = GetComponentInChildren<ActionPromptUI>(true);
+
             // Cache standing controller dimensions
             standHeight = cc.height;
             standCenter = cc.center;
@@ -101,9 +109,36 @@ namespace MORTIS.Players
             HandleCrouch(crouchHeld);
             animatorDriver?.SetCrouching(IsCrouching);
 
-            // --- LEDGE CLIMBING HANDOFF ---
+            // --- LEDGE PROMPT + LEDGE CLIMBING HANDOFF ---
+            bool canClimbLedgeNow = false;
+
+            if (ledgeClimber != null && !ledgeClimber.IsBusy)
+            {
+                // Non-destructive probe so UI can show the prompt
+                canClimbLedgeNow = ledgeClimber.CanStartLedgeHangNow();
+
+                Debug.Log($"[LedgeUI] canClimb={canClimbLedgeNow} viewForward={(ledgeClimber.viewForward ? ledgeClimber.viewForward.name : "NULL")} promptUI={(actionPromptUI != null)}");
+
+                if (canClimbLedgeNow)
+                {
+                    Debug.Log("[LedgeUI] Calling Show()");
+                    actionPromptUI?.Show(ledgePromptText);
+                }       
+                else
+                {    
+                    Debug.Log("[LedgeUI] Calling Hide()");
+                    actionPromptUI?.Hide();
+                }    
+            }
+            else
+            {
+                // If we're busy climbing, never show the prompt
+                actionPromptUI?.Hide();
+            }
+
             if (ledgeClimber != null)
             {
+                // If we are already in a climb state, let the climber run and exit
                 if (ledgeClimber.IsBusy)
                 {
                     ledgeClimber.Tick(Time.deltaTime, moveInput, jumpPressed);
@@ -112,9 +147,14 @@ namespace MORTIS.Players
                     return;
                 }
 
-                bool wantLedgeGrab = jumpPressed || (!groundedBeforeMove && jumpHeld);
+                // Prefer ledge grab when a ledge is valid
+                bool wantLedgeGrab = canClimbLedgeNow && (jumpPressed || (!groundedBeforeMove && jumpHeld));
+
                 if (wantLedgeGrab && ledgeClimber.TryStartLedgeHang())
                 {
+                    // Hide prompt immediately once we commit to the hang
+                    actionPromptUI?.Hide();
+
                     verticalVelocity = groundedGravity;
                     cameraMotion?.OnJump();
                     wasGrounded = cc.isGrounded;
@@ -128,9 +168,12 @@ namespace MORTIS.Players
             if (groundedBeforeMove && verticalVelocity < 0f)
                 verticalVelocity = groundedGravity;
 
-            // jump
+            // jump (normal jump only if we didn't start a ledge hang above)
             if (groundedBeforeMove && jumpPressed)
             {
+                // prevent prompt lingering if you jump away
+                actionPromptUI?.Hide();
+
                 verticalVelocity = Mathf.Sqrt(jumpHeight * -2f * gravity);
                 cameraMotion?.OnJump();
                 animatorDriver?.TriggerJump(); // <-- hook animator here
@@ -179,7 +222,6 @@ namespace MORTIS.Players
             {
                 float impact = Mathf.Abs(prevYVel);
                 cameraMotion?.OnLand(impact);
-                // If you later want a "Land" trigger, call it here.
             }
 
             wasGrounded = groundedAfterMove;
@@ -210,7 +252,6 @@ namespace MORTIS.Players
 
             float targetHeight = IsCrouching ? crouchHeight : standHeight;
 
-            // Common setup: center.y ~= height/2. We keep feet planted by making center match height/2.
             Vector3 targetCenter = IsCrouching
                 ? new Vector3(standCenter.x, targetHeight * 0.5f, standCenter.z)
                 : standCenter;
@@ -221,42 +262,30 @@ namespace MORTIS.Players
 
         bool CanStandUp()
         {
-            // Where your head would be when standing
             float r = cc.radius;
-
-            // current "feet" reference (CharacterController assumes transform.position is at feet in most setups)
             Vector3 feet = transform.position;
 
-            // Current crouched top and standing top (world-space Y)
-            float currentTopY = feet.y + cc.height;      // approx top now
-            float standTopY   = feet.y + standHeight;    // top if standing
+            float currentTopY = feet.y + cc.height;
+            float standTopY = feet.y + standHeight;
 
-            // If we're already basically standing, no need to block
             if (standTopY <= currentTopY + 0.001f) return true;
 
-            // Start the cast slightly above current top to avoid immediately hitting our own surroundings
             Vector3 start = new Vector3(feet.x, currentTopY - r * 0.25f, feet.z);
-
-            // Cast distance to reach the standing top (minus a small padding)
             float dist = (standTopY - currentTopY) + 0.02f;
-
-            // SphereCast upward with a slightly smaller radius so nearby walls don't falsely block
             float headRadius = Mathf.Max(0.05f, r * 0.9f);
 
             bool hit = Physics.SphereCast(
-            start,
-            headRadius,
-            Vector3.up,
-            out _,
-            dist,
-            standCheckMask,
-            QueryTriggerInteraction.Ignore
-        );
+                start,
+                headRadius,
+                Vector3.up,
+                out _,
+                dist,
+                standCheckMask,
+                QueryTriggerInteraction.Ignore
+            );
 
-        return !hit;
+            return !hit;
         }
-
-
 
         // -------------------- INPUT --------------------
 

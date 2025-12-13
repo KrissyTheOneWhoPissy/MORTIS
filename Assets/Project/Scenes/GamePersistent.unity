@@ -325,6 +325,7 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   directory: {fileID: 11400000, guid: c47b92c026a17fd4f8225ca76f57c501, type: 2}
   currentScene: 
+  bootstrapCameraRoot: {fileID: 1538103471}
 --- !u!114 &847678422
 MonoBehaviour:
   m_ObjectHideFlags: 0

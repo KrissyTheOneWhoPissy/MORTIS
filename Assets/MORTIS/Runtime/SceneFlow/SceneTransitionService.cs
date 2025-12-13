@@ -14,6 +14,16 @@ namespace MORTIS.SceneFlow
         [SerializeField] private string currentScene;   // name of the active content scene
         int cursor = -1;
 
+        [Header("Bootstrap (Main Menu Only)")]
+        [SerializeField] private GameObject bootstrapCameraRoot;
+
+        [ClientRpc]
+        private void SetBootstrapCameraActiveClientRpc(bool active)
+        {
+            if (bootstrapCameraRoot != null)
+                bootstrapCameraRoot.SetActive(active);
+        }
+
         // Track which clients have reported ready for the just-loaded scene
         System.Collections.Generic.HashSet<ulong> _ready = new();
         string _awaitingScene = null;
@@ -68,33 +78,38 @@ namespace MORTIS.SceneFlow
         {
             if (!IsServer) return;
 
-            // If an offline MainMenu was loaded by OfflineBootstrap, unload it now.
-            var mm = UnityEngine.SceneManagement.SceneManager.GetSceneByName(directory.mainMenu);
-            if (mm.IsValid() && mm.isLoaded)
-                UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(mm);
+    // Turn off bootstrap camera for everyone
+    SetBootstrapCameraActiveClientRpc(false);
 
-            StartCoroutine(ServerLoadContent(directory.ticketBooth));
-            var rs = FindFirstObjectByType<RunStateService>();
-            rs?.ServerSetPhase(RunPhase.TicketBooth);
+    // If an offline MainMenu was loaded by OfflineBootstrap, unload it now.
+    var mm = UnityEngine.SceneManagement.SceneManager.GetSceneByName(directory.mainMenu);
+    if (mm.IsValid() && mm.isLoaded)
+        UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(mm);
+
+    StartCoroutine(ServerLoadContent(directory.ticketBooth));
+    var rs = FindFirstObjectByType<RunStateService>();
+    rs?.ServerSetPhase(RunPhase.TicketBooth);
         }
 
         [ServerRpc(RequireOwnership = false)]
         public void HostTestSceneServerRpc()
-        {
-            if (!IsServer) return;
+{
+    if (!IsServer) return;
 
-            // Unload main menu if loaded
-            var mm = UnityEngine.SceneManagement.SceneManager.GetSceneByName(directory.mainMenu);
-            if (mm.IsValid() && mm.isLoaded)
-            UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(mm);
+    // Turn off bootstrap camera for everyone
+    SetBootstrapCameraActiveClientRpc(false);
 
-            // Load the TestingField scene
-            StartCoroutine(ServerLoadContent(directory.testScene));
+    // Unload main menu if loaded
+    var mm = UnityEngine.SceneManagement.SceneManager.GetSceneByName(directory.mainMenu);
+    if (mm.IsValid() && mm.isLoaded)
+        UnityEngine.SceneManagement.SceneManager.UnloadSceneAsync(mm);
 
-            // Optional: tell your RunStateService we are in a test phase
-            var rs = FindFirstObjectByType<RunStateService>();
-            rs?.ServerSetPhase(RunPhase.Playing);  // or your own phase if you add one
-        }
+    // Load the TestingField scene
+    StartCoroutine(ServerLoadContent(directory.testScene));
+
+    var rs = FindFirstObjectByType<RunStateService>();
+    rs?.ServerSetPhase(RunPhase.Playing);
+}
 
         [ServerRpc(RequireOwnership = false)]
         public void StartRunServerRpc()
