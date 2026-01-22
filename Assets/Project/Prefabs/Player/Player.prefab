@@ -480,7 +480,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  GlobalObjectIdHash: 2901753734
+  GlobalObjectIdHash: 2985852415
   InScenePlacedSourceGlobalObjectIdHash: 2317543236
   DeferredDespawnTick: 0
   Ownership: 1
@@ -515,7 +515,7 @@ CharacterController:
   m_Radius: 0.3
   m_SlopeLimit: 45
   m_StepOffset: 0.3
-  m_SkinWidth: 0.08
+  m_SkinWidth: 0.02
   m_MinMoveDistance: 0.001
   m_Center: {x: 0, y: 0.9, z: 0}
 --- !u!114 &7101499737746184
@@ -703,6 +703,7 @@ MonoBehaviour:
   climbableLayers:
     serializedVersion: 2
     m_Bits: 1024
+  animator: {fileID: 0}
   wallCheckDistance: 1.8
   minLedgeBelowCamera: 0.7
   maxLedgeAboveCamera: 2.5
@@ -712,6 +713,15 @@ MonoBehaviour:
   climbUpTime: 1
   climbForwardDistance: 0.7
   grabTime: 0.5
+  handSeparation: 0.45
+  handBelowTop: 0.08
+  handInFromEdge: 0.1
+  standForwardFromEdge: 0.45
+  standExtraUp: 0.02
+  hangUpOffset: -1.5
+  hangBackOffset: 1
+  hangSideOffset: 0
+  hangYawOffset: 0
 --- !u!114 &5793108640400889617
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -938,14 +948,14 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7881033972375299067}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
   m_LocalPosition: {x: 0, y: -0.23, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 8755607763543604013}
   m_Father: {fileID: 3208747615289346391}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 90, z: 0}
 --- !u!1 &8483818079317753164
 GameObject:
   m_ObjectHideFlags: 0

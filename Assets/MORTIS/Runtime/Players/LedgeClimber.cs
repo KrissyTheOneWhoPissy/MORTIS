@@ -11,6 +11,10 @@ namespace MORTIS.Players
         [Header("What can we climb?")]
         public LayerMask climbableLayers;
 
+        [Header("Animation")]
+        [Tooltip("Animator on the character (usually on a child). If left empty, it will auto-find one in children.")]
+        [SerializeField] private Animator animator;
+
         [Header("Camera-based detection")]
         public float wallCheckDistance = 1.8f;
         public float minLedgeBelowCamera = 0.7f;
@@ -39,6 +43,20 @@ namespace MORTIS.Players
         public float standForwardFromEdge = 0.45f;    // how far onto the top we end up
         public float standExtraUp = 0.02f;            // small lift to avoid ground clipping
 
+        // NEW: Live tuning sliders for matching animation pose to ledge geometry
+        [Header("Hang Pose Tuning (Play Mode sliders)")]
+        [Tooltip("+ = move the hang pose UP (hands higher).")]
+        public float hangUpOffset = 0.0f;
+
+        [Tooltip("+ = move the hang pose FARTHER from the wall (more back).")]
+        public float hangBackOffset = 0.0f;
+
+        [Tooltip("+ = move the hang pose to the RIGHT along the ledge.")]
+        public float hangSideOffset = 0.0f;
+
+        [Tooltip("Degrees. + = rotate right while hanging (yaw).")]
+        public float hangYawOffset = 0.0f;
+
         [System.Serializable]
         public struct LedgeInfo
         {
@@ -59,7 +77,7 @@ namespace MORTIS.Players
             public Vector3 rightHandTarget;
         }
 
-        CharacterController cc;
+        private CharacterController cc;
 
         private enum ClimbState { Normal, Grabbing, Hanging, Climbing }
         private ClimbState state = ClimbState.Normal;
@@ -76,13 +94,27 @@ namespace MORTIS.Players
         // Stored ledge info for the active climb
         private LedgeInfo activeLedge;
 
+        // Animator hashes (must match Animator parameter names)
+        private static readonly int IsHangingHash  = Animator.StringToHash("IsHanging");
+        private static readonly int ClimbUpHash    = Animator.StringToHash("ClimbUp");
+        private static readonly int ActionLockHash = Animator.StringToHash("IsActionLocked");
+
         public bool IsBusy => state != ClimbState.Normal;
+
+        // Optional: helpful external state checks (for PlayerMover gating etc.)
+        public bool IsHangingState  => state == ClimbState.Hanging;
+        public bool IsGrabbingState => state == ClimbState.Grabbing;
+        public bool IsClimbingState => state == ClimbState.Climbing;
 
         void Awake()
         {
             cc = GetComponent<CharacterController>();
+
             if (viewForward == null && Camera.main != null)
                 viewForward = Camera.main.transform;
+
+            if (!animator)
+                animator = GetComponentInChildren<Animator>(true);
         }
 
         public void Tick(float deltaTime, Vector2 moveInput, bool jumpPressed)
@@ -101,10 +133,6 @@ namespace MORTIS.Players
             }
         }
 
-        /// <summary>
-        /// Non-destructive check: "If the player pressed Space right now, would we be able to start hanging?"
-        /// Use this for UI prompts.
-        /// </summary>
         public bool CanStartLedgeHangNow()
         {
             if (state != ClimbState.Normal) return false;
@@ -134,14 +162,16 @@ namespace MORTIS.Players
             transform.rotation = activeLedge.faceWallRotation;
 
             state = ClimbState.Grabbing;
+
+            if (animator)
+            {
+                animator.SetBool(ActionLockHash, true);
+                animator.SetBool(IsHangingHash, false); // not hanging yet during grab tween
+            }
+
             return true;
         }
 
-        /// <summary>
-        /// Step 1: Ledge detection that returns a stable LedgeInfo including:
-        /// - hangRootPos / standRootPos
-        /// - left/right hand targets (procedurally computed, no anchors required)
-        /// </summary>
         private bool TryGetLedgeInfo(out LedgeInfo info)
         {
             info = default;
@@ -206,15 +236,18 @@ namespace MORTIS.Players
                 faceDir = forwardFlat;
             faceDir.Normalize();
 
-            Quaternion faceWallRot = Quaternion.LookRotation(faceDir);
+            // NEW: add yaw tuning offset
+            Quaternion faceWallRot = Quaternion.LookRotation(faceDir) * Quaternion.Euler(0f, hangYawOffset, 0f);
 
             Vector3 up = Vector3.up;
             Vector3 ledgeTop = topHit.point;
 
             // 3) Compute hang root target (CharacterController center position)
+            // NEW: apply tuning offsets (up/back/side)
             Vector3 hangRoot = ledgeTop
-                               - wallNormal * hangSnapBack
-                               - up * hangHeightBelowTop;
+                               - wallNormal * (hangSnapBack + hangBackOffset)
+                               - up * (hangHeightBelowTop - hangUpOffset)  // +upOffset should move you up
+                               + edgeDir * hangSideOffset;
 
             // 4) Compute stand root target (CharacterController center position)
             Vector3 standRoot = ledgeTop
@@ -279,6 +312,16 @@ namespace MORTIS.Players
             if (t >= 1f)
             {
                 state = ClimbState.Hanging;
+
+                // Optional: hard snap at the end of grab tween to eliminate tiny mismatch
+                Vector3 snapDelta = activeLedge.hangRootPos - transform.position;
+                cc.Move(snapDelta);
+
+                if (animator)
+                {
+                    animator.SetBool(ActionLockHash, true);
+                    animator.SetBool(IsHangingHash, true);
+                }
             }
         }
 
@@ -293,6 +336,12 @@ namespace MORTIS.Players
             if (moveInput.y < -0.1f)
             {
                 state = ClimbState.Normal;
+
+                if (animator)
+                {
+                    animator.SetBool(IsHangingHash, false);
+                    animator.SetBool(ActionLockHash, false);
+                }
             }
         }
 
@@ -300,23 +349,22 @@ namespace MORTIS.Players
         {
             climbStartPos = transform.position;
 
-            // NOTE: For now we keep the old climb motion.
-            // Later steps will replace this with a trajectory using activeLedge.standRootPos.
-            Vector3 forwardFlat = transform.forward;
-            forwardFlat.y = 0f;
-            forwardFlat.Normalize();
-            Vector3 up = Vector3.up;
-
-            Vector3 upOffset = up * (cc.height * 0.9f);
-            Vector3 forwardOffset = forwardFlat * climbForwardDistance;
-
-            climbTargetPos = transform.position + upOffset + forwardOffset;
+            // Use the validated stand position computed from ledge detection:
+            climbTargetPos = activeLedge.standRootPos;
 
             if (climbUpTime <= 0f)
                 climbUpTime = 0.01f;
 
             climbTimer = 0f;
             state = ClimbState.Climbing;
+
+            if (animator)
+            {
+                animator.SetBool(ActionLockHash, true);
+                animator.SetBool(IsHangingHash, false);
+                animator.ResetTrigger(ClimbUpHash);
+                animator.SetTrigger(ClimbUpHash);
+            }
         }
 
         private void HandleClimbing(float deltaTime)
@@ -333,6 +381,12 @@ namespace MORTIS.Players
             if (t >= 1f)
             {
                 state = ClimbState.Normal;
+
+                if (animator)
+                {
+                    animator.SetBool(IsHangingHash, false);
+                    animator.SetBool(ActionLockHash, false);
+                }
             }
         }
 
